@@ -28,6 +28,8 @@ int main() {
     int totalBytes = 0;
     int errr = 0;
     char* listP;
+    char* bufferP;
+    FILE *fp;
 
 
 
@@ -110,21 +112,24 @@ int main() {
                     errr = 1;
                     break;
                 }
-                
+
                 buffer[n] = '\0'; //terminate message
 
                 if (!strcmp(buffer,"COMMAND_ERROR")) { // when requesting a song not listed
                     printf("Command error received from server. Cleaning up...\nDone!\n");
                     errr = 1;
                     break;
+                } else if (totalFrames == 1) {
+                    fp = fopen(songName, "w+");
                 }
 
-                buffer[n] = '\0'; //terminate message
-                
-                if (!strcmp(buffer, "STREAM_DONE"))
-                {
-                    break;
+                if (errr != 1) {
+                    bufferP = buffer;
+                    fwrite(bufferP + 12 , 1 , n-12 , fp);
                 }
+
+                if (!strcmp(buffer, "STREAM_DONE"))
+                    break;
 
                 n -= 12;
                 printf("Frame # %d Received with %d Bytes\n", totalFrames, n);
@@ -133,38 +138,12 @@ int main() {
             } while (strcmp(buffer, "STREAM_DONE"));
 
             totalFrames -= 1;
-            if(errr == 0)
+            if(errr != 1) {
                 printf("Stream done. Total Frames: %d Total Size : %d bytes\nDone!\n", totalFrames, totalBytes);
+                fclose(fp);
+            }
         }
 
-        /*
-        // Receive message from client
-        if(( n = recvfrom(sockfd, (char *)buffer, MAXLINE, 0, (struct sockaddr *) &servaddr, &len))<0)
-        {
-            perror("ERROR");
-            printf("Errno: %d. ",errno);
-            exit(EXIT_FAILURE);
-        }
-        buffer[n] = '\0'; //terminate message
-        
-
-        // Super weird why I had to do it like this but this works... not sure im kinda annoyed
-        if (!strcmp(buffer,"COMMAND_ERROR")) { // when requesting a song not listed
-            printf("Server : %s\n", buffer);
-            printf("Command error received from server. Cleaning up...\nDone!\n");
-        }
-        else {
-            printf("Server : %s\n", buffer);
-        }
-        */
-
-        // Setting the timeout (using sys/time on the included header file)
-        // I really don't know if this works... not sure how to test it since this has to do
-
-
-    
-
-        //TODO: saving to mp3
 
     }
 
