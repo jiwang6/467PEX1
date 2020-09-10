@@ -8,6 +8,7 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <errno.h>
+#include <sys/time.h>
 
 #define PORT     4240
 #define MAXLINE 1024
@@ -22,6 +23,8 @@ int main() {
     struct sockaddr_in     servaddr;  //we don't bind to a socket to send UDP traffic, so we only need to configure server address
 
     char kidsChoice[50];
+    int totalFrames = 0;
+    int totalBytes = 0;
 
 
     // Creating socket file descriptor
@@ -38,6 +41,9 @@ int main() {
     int n, len = sizeof(servaddr);
 
     for (;;) {
+
+
+
         strcpy(kidsChoice, "\0");
         printf("Enter one of the following commands:\n\"1\" = List Songs\n\"2\" = Stream a Song\n\"3\" = exit\n");
         fgets(kidsChoice,10,stdin);
@@ -69,6 +75,24 @@ int main() {
             sendto(sockfd, (const char *)streamRequest, strlen(streamRequest), 0, (const struct sockaddr *) &servaddr, sizeof(servaddr));
             printf("Sending start stream\n");
             strcpy(streamRequest, "START_STREAM\n");
+
+
+            // PRINT EACH FRAME IT RECEIVES - STILL NEEDS TO PRINT THE SIZE IN BYTES
+            while (strcmp(buffer, "STREAM_DONE"))
+            {
+                if(( n = recvfrom(sockfd, (char *)buffer, MAXLINE, 0, (struct sockaddr *) &servaddr, &len))<0)
+                {
+                    perror("ERROR");
+                    printf("Errno: %d. ",errno);
+                    exit(EXIT_FAILURE);
+                }
+                buffer[n] = '\0'; //terminate message
+
+                printf("Frame # %d Received with %d Bytes!\n", totalFrames, len);
+                ++totalFrames;
+            }
+                totalFrames -= 1;
+                printf("Stream done. Total Frames: %d Total Size : %d bytes\n", totalFrames, totalBytes);
         }
 
 
@@ -80,7 +104,35 @@ int main() {
             exit(EXIT_FAILURE);
         }
         buffer[n] = '\0'; //terminate message
-        printf("Server : %s\n", buffer);
+
+
+        // Super weird why I had to do it like this but this works... not sure im kinda annoyed
+        if (!strcmp(buffer,"COMMAND_ERROR")) {
+            printf("Server : %s\n", buffer);
+            printf("Command error received from server. Cleaning up...\nDone!\n");
+        }
+        else {
+            printf("Server : %s\n", buffer);
+        }
+
+        // Setting the timeout (using sys/time on the included header file)
+        // I really don't know if this works... not sure how to test it since this has to do
+
+        struct timeval timeout;      
+        timeout.tv_sec = 5;
+        timeout.tv_usec = 0;
+
+        if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (char * ) &timeout, sizeof(timeout)))
+        {
+            perror("setsockopt failed");
+            exit(EXIT_FAILURE);
+        }
+
+    
+
+        //TODO: timeout function, saving to mp3
+        //right now, it just prints everything
+
     }
 
     close(sockfd);
