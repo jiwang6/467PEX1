@@ -23,7 +23,7 @@ int main() {
     struct sockaddr_in     servaddr;  //we don't bind to a socket to send UDP traffic, so we only need to configure server address
 
     char kidsChoice[50];
-    int totalFrames = 0;
+    int totalFrames = 1;
     int totalBytes = 0;
 
 
@@ -78,6 +78,7 @@ int main() {
 
 
             // PRINT EACH FRAME IT RECEIVES - STILL NEEDS TO PRINT THE SIZE IN BYTES
+            
             while (strcmp(buffer, "STREAM_DONE"))
             {
                 if(( n = recvfrom(sockfd, (char *)buffer, MAXLINE, 0, (struct sockaddr *) &servaddr, &len))<0)
@@ -87,8 +88,14 @@ int main() {
                     exit(EXIT_FAILURE);
                 }
                 buffer[n] = '\0'; //terminate message
+                if (!strcmp(buffer, "STREAM_DONE"))
+                {
+                    break;
+                }
 
-                printf("Frame # %d Received with %d Bytes!\n", totalFrames, len);
+                n -= 12;
+                printf("Frame # %d Received with %d Bytes!\n", totalFrames, n);
+                totalBytes += n;
                 ++totalFrames;
             }
                 totalFrames -= 1;
@@ -121,8 +128,8 @@ int main() {
         struct timeval timeout;      
         timeout.tv_sec = 5;
         timeout.tv_usec = 0;
-
-        if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (char * ) &timeout, sizeof(timeout)))
+        
+        if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (char * ) &timeout, sizeof(timeout)) < 0)
         {
             perror("setsockopt failed");
             exit(EXIT_FAILURE);
